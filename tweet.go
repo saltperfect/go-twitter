@@ -552,13 +552,13 @@ func (t *Tweet) FilteredStream(ctx context.Context, options TweetFieldOptions) (
 }
 
 type Stream struct {
-	tweetStream chan interface{}
+	TweetStream chan interface{}
 	run         bool
 }
 
 func NewStream() *Stream {
 	return &Stream{
-		tweetStream: make(chan interface{}),
+		TweetStream: make(chan interface{}),
 		run:         true,
 	}
 }
