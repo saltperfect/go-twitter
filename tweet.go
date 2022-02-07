@@ -1,6 +1,7 @@
 package twitter
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -548,6 +549,62 @@ func (t *Tweet) FilteredStream(ctx context.Context, options TweetFieldOptions) (
 		return nil, err
 	}
 	return tl, nil
+}
+
+type Stream struct {
+	tweetStream chan interface{}
+	run         bool
+}
+
+func NewStream() *Stream {
+	return &Stream{
+		tweetStream: make(chan interface{}),
+		run:         true,
+	}
+}
+
+func (s *Stream) Stop() {
+	s.run = false
+}
+
+func (t *Tweet) FilteredStreaming(ctx context.Context, options TweetFieldOptions, stream *Stream) (*Stream, error) {
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%s/%s", t.Host, tweetFilteredStreamEndpoint), nil)
+	if err != nil {
+		return nil, fmt.Errorf("tweet lookup request: %w", err)
+	}
+	req.Header.Add("Accept", "application/json")
+	t.Authorizer.Add(req)
+	options.addQuery(req)
+
+	resp, err := t.Client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("tweet lookup response: %w", err)
+	}
+	defer resp.Body.Close()
+
+	scanner := bufio.NewScanner(resp.Body)
+
+	if resp.StatusCode != http.StatusOK {
+		e := &TweetErrorResponse{}
+		e.StatusCode = resp.StatusCode
+		return nil, &HTTPError{
+			Status:     resp.Status,
+			StatusCode: resp.StatusCode,
+			URL:        resp.Request.URL.String(),
+		}
+	}
+
+	for scanner.Scan() && stream.run {
+		j := scanner.Bytes()
+		if len(j) == 0 {
+			continue
+		} else {
+			stream.tweetStream <- j
+		}
+	}
+
+	return stream, nil
 }
 
 // SampledStream will stream about 1% of all tweets
