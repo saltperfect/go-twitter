@@ -600,7 +600,7 @@ func (t *Tweet) FilteredStreaming(ctx context.Context, options TweetFieldOptions
 		if len(j) == 0 {
 			continue
 		} else {
-			stream.tweetStream <- j
+			stream.TweetStream <- j
 		}
 	}
 
